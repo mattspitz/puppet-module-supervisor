@@ -157,15 +157,26 @@ class supervisor(
 
   if ! defined(Package[$supervisor::params::package]) {
     package { $supervisor::params::package:
-      ensure => $package_ensure,
+      ensure => 'absent'
     }
   }
 
-  file { $supervisor::params::conf_dir:
+  pip::install { 'supervisor':
+    require => Package[$supervisor::params::package]
+  }
+
+  file { '/etc/init.d/supervisor':
+    ensure  => file,
+    source  => 'puppet:///modules/supervisor/supervisor.init',
+    mode    => '0755',
+    require => Pip::Install['supervisor']
+  }
+
+  file { '/etc/supervisor':
     ensure  => $dir_ensure,
     purge   => true,
     recurse => $recurse_config_dir,
-    require => Package[$supervisor::params::package],
+    require => Pip::Install['supervisor']
   }
 
   file { [
@@ -173,28 +184,29 @@ class supervisor(
     '/var/run/supervisor'
   ]:
     ensure  => $dir_ensure,
+    mode    => 'a=rwx',
     purge   => true,
     backup  => false,
-    require => Package[$supervisor::params::package],
+    require => Pip::Install['supervisor']
   }
 
-  file { $supervisor::params::conf_file:
+  file { '/etc/supervisord.conf':
     ensure  => $file_ensure,
     content => template('supervisor/supervisord.conf.erb'),
     require => File[$supervisor::params::conf_dir],
-    notify  => Service[$supervisor::params::system_service],
+    notify  => Service['supervisor']
   }
 
   file { '/etc/logrotate.d/supervisor':
     ensure  => $file_ensure,
     source  => 'puppet:///modules/supervisor/logrotate',
-    require => Package[$supervisor::params::package],
+    require => Pip::Install['supervisor']
   }
 
-  service { $supervisor::params::system_service:
+  service { 'supervisor':
     ensure     => $service_ensure_real,
     enable     => $service_enable,
     hasrestart => true,
-    require    => File[$supervisor::params::conf_file],
+    require    => [ File['/etc/init.d/supervisor'], File['/etc/supervisord.conf'] ]
   }
 }
