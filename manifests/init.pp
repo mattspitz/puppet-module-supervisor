@@ -165,13 +165,6 @@ class supervisor(
     require => Package[$supervisor::params::package]
   }
 
-  file { '/etc/init.d/supervisor':
-    ensure  => file,
-    source  => 'puppet:///modules/supervisor/supervisor.init',
-    mode    => '0755',
-    require => Pip::Install['supervisor']
-  }
-
   file { '/etc/supervisor':
     ensure  => $dir_ensure,
     purge   => true,
@@ -203,10 +196,20 @@ class supervisor(
     require => Pip::Install['supervisor']
   }
 
+  file { '/etc/init/supervisor.conf':
+    ensure => file,
+    source => 'puppet:///modules/supervisor/supervisor_upstart.conf'
+  }
+
+  # Create a symlink to /etc/init/*.conf in /etc/init.d, because Puppet 2.7 looks there incorrectly (see: http://projects.puppetlabs.com/issues/14297)
+  file { '/etc/init.d/supervisor':
+    ensure => link,
+    target => '/lib/init/upstart-job',
+  }
+
   service { 'supervisor':
-    ensure     => $service_ensure_real,
-    enable     => $service_enable,
-    hasrestart => true,
-    require    => [ File['/etc/init.d/supervisor'], File['/etc/supervisord.conf'] ]
+    ensure   => running,
+    provider => 'upstart',
+    require  => File['/etc/init.d/supervisor', '/etc/supervisord.conf'],
   }
 }
