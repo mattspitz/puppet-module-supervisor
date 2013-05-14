@@ -208,8 +208,10 @@ class supervisor(
   }
 
   service { 'supervisor':
-    ensure   => running,
-    provider => 'upstart',
-    require  => File['/etc/init.d/supervisor', '/etc/supervisord.conf'],
+    ensure     => running,
+    hasstatus  => true,
+    hasrestart => true,
+    provider   => 'upstart',
+    require    => File['/etc/init.d/supervisor', '/etc/supervisord.conf'],
   }
 }
